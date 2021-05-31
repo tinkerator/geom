@@ -1,4 +1,4 @@
-# geom a package for 3D Euclidean geomertry
+# geom a package for 3D Euclidean geometry
 
 ## Overview
 
