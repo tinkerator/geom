@@ -102,9 +102,11 @@ func (v Vector) R() float64 {
 
 // ErrNormalNotPossible etc are errors returned by this package.
 var (
-	ErrNormalNotPossible = errors.New("normal not possible")
-	ErrNotValidMatrix    = errors.New("not a 3x3 matrix")
-	ErrSingular          = errors.New("too close to singular")
+	ErrNormalNotPossible     = errors.New("normal not possible")
+	ErrNotValidMatrix        = errors.New("not a 3x3 matrix")
+	ErrSingular              = errors.New("too close to singular")
+	ErrNoNormalForZeroVector = errors.New("no non-collinear of zero vector")
+	ErrIsIdentity            = errors.New("too close to identity")
 )
 
 // Normalize attempts to scale v to return a unit vector parallel to
@@ -129,10 +131,6 @@ func (v Vector) Cross(u Vector) Vector {
 		v[0]*u[1] - v[1]*u[0],
 	}
 }
-
-// ErrNoNormalForZeroVector indicates that we can't make a vector
-// perpendicular to zero.
-var ErrNoNormalForZeroVector = errors.New("no non-collinear of zero vector")
 
 // NonCollinear returns a vector that is not a scalar multiple of the
 // input.
@@ -537,7 +535,7 @@ func (m Matrix) Eigen() (s float64, v Vector, a Angle, err error) {
 		v = eigenU(d, n[5], n[3], 1-n[8], n[6], n[7])
 		v[0], v[1], v[2] = v[2], v[0], v[1]
 	} else {
-		err = errors.New("too close to identity")
+		err = ErrIsIdentity
 		return
 	}
 
