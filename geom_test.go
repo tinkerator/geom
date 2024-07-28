@@ -1,6 +1,9 @@
 package geom
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestVector(t *testing.T) {
 	if got, want := len(V()), 3; got != want {
@@ -111,6 +114,41 @@ func TestEigen(t *testing.T) {
 			t.Errorf("[%d] failed to do rotation ang=%v around %v: %v", i, a, v, err)
 		} else if !rC.Equals(r) {
 			t.Errorf("[%d] rotation %v does not match intended for ang=%v around %v", i, rC, a, v)
+		}
+	}
+}
+
+func TestSimilarity(t *testing.T) {
+	var pts [][2]float64
+	const n = 3
+	da := Degrees(360.0 / n)
+	for i := float64(0); i < n; i++ {
+		rot := da.Rad() * i
+		pts = append(pts, [2]float64{n * math.Cos(rot), n * math.Sin(rot)})
+	}
+
+	for i, x0 := range []float64{-3, 0, 5} {
+		for j, y0 := range []float64{-1, 0, 7} {
+			const s = 11.0
+			rot := NewSimilarity(0, 0, 0, 0, 1, da)
+			sim := NewSimilarity(0, 0, x0, y0, s, da)
+			rev := NewSimilarity(x0, y0, 0, 0, 1.0/s, -da)
+			for k, pt := range pts {
+				px, py := pt[0], pt[1]
+				x, y := rot.Apply(px, py)
+				if gx, gy := rot.Inv(x, y); !Zeroish(gx-px) || !Zeroish(gy-py) {
+					t.Fatalf("inv[%d,%d,%d] got=(%g,%g) want=(%g,%g)", i, j, k, gx, gy, px, px)
+				}
+				npt := pts[(k+1)%n]
+				if xw, yw := npt[0], npt[1]; !Zeroish(xw-x) || !Zeroish(yw-y) {
+					t.Fatalf("rot[%d,%d,%d] got=(%g,%g) want=(%g,%g)", i, j, k, x, y, xw, yw)
+				}
+				x2, y2 := sim.Apply(px, py)
+				x1, y1 := rev.Apply(x2, y2)
+				if !Zeroish(px-x1) || !Zeroish(py-y1) {
+					t.Fatalf("rev[%d,%d,%d] got=(%g,%g) want=(%g,%g)", i, j, k, x1, y1, px, py)
+				}
+			}
 		}
 	}
 }

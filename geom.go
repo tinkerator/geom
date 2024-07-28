@@ -162,15 +162,15 @@ type Matrix []float64
 // M defines a matrix. It takes a variable number of arguments, if the
 // number of arguments is:
 //
-//  1 - create a matrix with this value used by the elements on the
-//      trace.
+//	1 - create a matrix with this value used by the elements on the
+//	    trace.
 //
-//  3 - create a matrix with these values used to fill the trace elements.
+//	3 - create a matrix with these values used to fill the trace elements.
 //
-//  9 - each element is specified, left to right, top to bottom.
+//	9 - each element is specified, left to right, top to bottom.
 //
-//  other - start filling at [0][0], walking rows left to right until
-//          out of elements.
+//	other - start filling at [0][0], walking rows left to right until
+//	        out of elements.
 func M(v ...float64) Matrix {
 	switch len(v) {
 	case 1:
@@ -476,10 +476,9 @@ func RZ(a Angle) Matrix {
 
 // eigenU computes the eigenvector of a simplified set of equations:
 //
-//  (1) a*x = b*y + c*z   (for a != 0)
-//  (2) d*y = e*z + f*x
-//  (3)   1 = x*x + y*y + z*z
-//
+//	(1) a*x = b*y + c*z   (for a != 0)
+//	(2) d*y = e*z + f*x
+//	(3)   1 = x*x + y*y + z*z
 func eigenU(a, b, c, d, e, f float64) Vector {
 	// Use (1) to rewrite (2) as an equation for y and z.
 	// That is, d*y = e*z + f/a*(b*y + c*z), or
@@ -575,4 +574,121 @@ func (v Vector) RV(a Angle) (m Matrix, err error) {
 	w2 := w.XM(w)
 	m = I.AddS(w, a.S()).AddS(w2, 1-a.C())
 	return
+}
+
+// Similarity holds the parameters of an similarity transformation.
+type Similarity struct {
+	x0, y0, x1, y1, s float64
+	a                 Angle
+	t                 Matrix
+	u                 Matrix
+}
+
+// update adjusts the parameters of the similarity transformation.
+func (sim *Similarity) adjust(x0, y0, x1, y1, s float64, ang Angle) {
+	sim.x0 = x0
+	sim.y0 = y0
+	sim.s = s
+	sim.a = ang
+	if Zeroish(s) {
+		// Collapse forward and reverse transformations.
+		sim.t = ZeroM
+		sim.u = ZeroM
+		return
+	}
+	u := RZ(-ang).Scale(1 / s)
+	u[2] = x0
+	u[5] = y0
+	u[8] = 1
+	t, err := u.Inv()
+	if err != nil {
+		panic(fmt.Sprintf("similarity should exist: %v", err))
+	}
+	t[2] += x1
+	t[5] += y1
+	u, err = t.Inv()
+	if err != nil {
+		panic(fmt.Sprintf("inverse similarity should exist: %v", err))
+	}
+	sim.t = t
+	sim.u = u
+}
+
+// NewSimarity creates an similarity transformation matrix that can be
+// used to transform a two dimensional point (x,y) into a new two
+// dimensional point. The transformation matrix can combine scaling,
+// rotation and translation. To specify the transformation, the input
+// (x,y) point will have (x0,y0) subtracted from it, and both
+// resulting displacements will be scaled by s. Then the result will
+// be rotated by ang. Finally, the point is translated (post rotation)
+// by adding (x1, y1).
+//
+// Note the similarity transformation capability of this package does
+// *not* support reflection.
+func NewSimilarity(x0, y0, x1, y1, s float64, ang Angle) *Similarity {
+	sim := &Similarity{}
+	sim.adjust(x0, y0, x1, y1, s, ang)
+	return sim
+}
+
+// Dup duplicates an similarity transformation.
+func (sim *Similarity) Dup() *Similarity {
+	d := &Similarity{}
+	d.adjust(sim.x0, sim.y0, sim.x1, sim.y1, sim.s, sim.a)
+	return d
+}
+
+// Apply applies the similarity transformation to an (x,y) point and
+// returns the transformed point (tx, ty).
+func (sim *Similarity) Apply(x, y float64) (tx, ty float64) {
+	v := sim.t.XV(V(x, y, 1))
+	return v[0], v[1]
+}
+
+// Apply applies the reverse similarity transformation to a (tx,ty) point
+// and returns the originating point (x, y). This function performs
+// the inverse of (*Similarity).Apply().
+func (sim *Similarity) Inv(tx, ty float64) (x, y float64) {
+	v := sim.u.XV(V(tx, ty, 1))
+	return v[0], v[1]
+}
+
+// Origin returns the origin for rotation and scaling.
+func (sim *Similarity) Origin() (x0, y0 float64) {
+	return sim.x0, sim.y0
+}
+
+// SetOrigin changes the origin for rotation and scaling.
+func (sim *Similarity) SetOrigin(x0, y0 float64) {
+	sim.adjust(x0, y0, sim.x1, sim.y1, sim.s, sim.a)
+}
+
+// Offset returns the offset after rotation and scaling.
+func (sim *Similarity) Offset() (x1, y1 float64) {
+	return sim.x1, sim.y1
+}
+
+// SetOffset returns the offset after rotation and scaling.
+func (sim *Similarity) SetOffset(x1, y1 float64) {
+	sim.adjust(sim.x0, sim.y0, x1, y1, sim.s, sim.a)
+}
+
+// Scale returns the scaling factor for the transformation.
+func (sim *Similarity) Scale() float64 {
+	return sim.s
+}
+
+// SetScale changes the scaling value for the transformation.
+func (sim *Similarity) SetScale(s float64) {
+	sim.adjust(sim.x0, sim.y0, sim.x1, sim.y1, s, sim.a)
+}
+
+// Angle returns the angle of rotation for the transformation.
+func (sim *Similarity) Angle() Angle {
+	return sim.a
+}
+
+// SetAngle changes the transformation angle.
+func (sim *Similarity) SetAngle(ang Angle) {
+	sim.adjust(sim.x0, sim.y0, sim.x1, sim.y1, sim.s, ang)
 }
