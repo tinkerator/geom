@@ -576,7 +576,7 @@ func (v Vector) RV(a Angle) (m Matrix, err error) {
 	return
 }
 
-// Similarity holds the parameters of an similarity transformation.
+// Similarity holds the parameters of a similarity transformation.
 type Similarity struct {
 	x0, y0, x1, y1, s float64
 	a                 Angle
@@ -614,7 +614,7 @@ func (sim *Similarity) adjust(x0, y0, x1, y1, s float64, ang Angle) {
 	sim.u = u
 }
 
-// NewSimarity creates an similarity transformation matrix that can be
+// NewSimarity creates a similarity transformation matrix that can be
 // used to transform a two dimensional point (x,y) into a new two
 // dimensional point. The transformation matrix can combine scaling,
 // rotation and translation. To specify the transformation, the input
@@ -631,7 +631,7 @@ func NewSimilarity(x0, y0, x1, y1, s float64, ang Angle) *Similarity {
 	return sim
 }
 
-// Dup duplicates an similarity transformation.
+// Dup duplicates a similarity transformation.
 func (sim *Similarity) Dup() *Similarity {
 	d := &Similarity{}
 	d.adjust(sim.x0, sim.y0, sim.x1, sim.y1, sim.s, sim.a)
